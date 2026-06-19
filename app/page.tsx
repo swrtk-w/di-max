@@ -12,16 +12,14 @@ export default function Home() {
   const [wheels, setWheels] = useState<any[]>([]);
   const [showAdmin, setShowAdmin] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
-  const [hasSearched, setHasSearched] = useState(false); // เพิ่ม State เช็คการกดค้นหา
+  const [hasSearched, setHasSearched] = useState(false);
   
-  // 1. แยก State สำหรับฝั่งตัวค้นหา (Filter)
   const [filterData, setFilterData] = useState({
     inches: "",
     holes: "",
     pcd: ""
   });
 
-  // 2. State สำหรับฝั่งกรอกข้อมูลสินค้าใหม่ (Modal)
   const [formData, setFormData] = useState({ 
     brand: "", 
     design: "", 
@@ -38,7 +36,6 @@ export default function Home() {
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
 
-  // ฟังก์ชันเช็ค PIN
   const handlePinChange = async (val: string) => {
     const numericValue = val.replace(/[^0-9]/g, "").slice(0, 6);
     setPin(numericValue);
@@ -62,9 +59,8 @@ export default function Home() {
     }
   };
 
-  // ฟังก์ชันค้นหา/ฟิลเตอร์ (ดึงข้อมูลเฉพาะตอนกดปุ่ม)
   const filterWheels = async () => {
-    setHasSearched(true); // เปลี่ยนสถานะว่ามีการกดค้นหาแล้ว
+    setHasSearched(true);
     let query = supabase.from("wheels").select("*");
     
     if (filterData.inches) query = query.eq("inches", filterData.inches);
@@ -75,7 +71,6 @@ export default function Home() {
     if (data) setWheels(data);
   };
 
-  // ฟังก์ชันจัดการตอนเลือกไฟล์ภาพ
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const selectedFile = e.target.files[0];
@@ -84,41 +79,69 @@ export default function Home() {
     }
   };
 
-  // ฟังก์ชันอัปโหลดและบันทึกข้อมูล
   const handleUpload = async () => {
     if (!file || !formData.brand || !formData.design || !formData.inches) {
       return alert("กรุณากรอกข้อมูลสำคัญให้ครบถ้วน (รูปภาพ, ยี่ห้อ, รุ่น, และขนาดขอบ)");
     }
 
     setIsUploading(true);
+    let uploadedFileName = ""; // สร้างตัวแปรไว้เก็บชื่อไฟล์ เผื่อต้องลบทิ้งตอน Error
+
     try {
       const compressed = await imageCompression(file, { maxSizeMB: 0.1, maxWidthOrHeight: 800 });
-      const fileName = `${Date.now()}.webp`;
       
-      const { error: uploadError } = await supabase.storage.from("wheel-images").upload(fileName, compressed);
-      if (uploadError) throw uploadError;
+      const safeBrand = formData.brand.trim().replace(/\s+/g, '_').replace(/[\/\\]/g, '-');
+      const safeDesign = formData.design.trim().replace(/\s+/g, '_').replace(/[\/\\]/g, '-');
+      
+      const baseFileName = `${safeBrand}_${safeDesign}_${formData.inches}x${formData.holes}H${formData.pcd}`;
+      let finalFileName = `${baseFileName}.webp`;
 
-      const { data: urlData } = supabase.storage.from("wheel-images").getPublicUrl(fileName);
+      const { data: existingFiles } = await supabase.storage
+        .from("wheel-images")
+        .list("", { search: baseFileName });
+
+      if (existingFiles && existingFiles.length > 0) {
+        let counter = 1;
+        while (existingFiles.some(f => f.name === finalFileName)) {
+          finalFileName = `${baseFileName}-${counter}.webp`;
+          counter++;
+        }
+      }
+
+      // 1. อัปโหลดภาพ
+      const { error: uploadError } = await supabase.storage.from("wheel-images").upload(finalFileName, compressed);
+      if (uploadError) throw uploadError;
       
+      uploadedFileName = finalFileName; // จำชื่อไฟล์ไว้ เผื่อต้อง Rollback
+
+      // 2. ดึง URL ของภาพ
+      const { data: urlData } = supabase.storage.from("wheel-images").getPublicUrl(finalFileName);
+      
+      // 3. บันทึกข้อมูลลง Database
       const { error: insertError } = await supabase.from("wheels").insert({ 
         ...formData, 
         image_url: urlData.publicUrl 
       });
-      if (insertError) throw insertError;
 
+      // 4. ถ้าบันทึก Database ไม่สำเร็จ ให้ลบรูปทิ้ง (Rollback)
+      if (insertError) {
+        await supabase.storage.from("wheel-images").remove([uploadedFileName]);
+        throw insertError; // โยน Error ไปแสดงผล
+      }
+
+      // 5. ถ้าทุกอย่างผ่านฉลุย
       alert("บันทึกข้อมูลสำเร็จ!");
       closeModal();
       
-      // อัปเดตรายการสินค้าเฉพาะถ้าเคยค้นหาไว้แล้ว
       if (hasSearched) filterWheels();
     } catch (error: any) {
+      // ในกรณีที่พังตั้งแต่ขั้นตอนบีบอัด หรืออัปโหลดไฟล์ หรือมี Error อื่นๆ
       alert("เกิดข้อผิดพลาด: " + error.message);
     } finally {
       setIsUploading(false);
     }
   };
 
-  // ฟังก์ชันลบสินค้า
   const handleDelete = async (id: string, imageUrl: string) => {
     if (!confirm("ยืนยันการลบสินค้านี้?")) return;
     const fileName = imageUrl.split('/').pop();
@@ -126,12 +149,9 @@ export default function Home() {
       await supabase.storage.from("wheel-images").remove([fileName]);
     }
     await supabase.from("wheels").delete().eq("id", id);
-    
-    // รีเฟรชข้อมูลล่าสุด
     filterWheels();
   };
 
-  // ฟังก์ชันปิด Modal และล้างค่าฟอร์ม
   const closeModal = () => {
     setShowAdmin(false);
     setPreview(null);
@@ -173,9 +193,7 @@ export default function Home() {
         <button onClick={() => setIsLoggedIn(false)} className="text-sm underline" style={{ color: "#A4161A" }}>ออกจากระบบ</button>
       </header>
 
-      {/* ------------------------------------------- */}
-      {/* ส่วนค้นหาสินค้า (Filter ด้านบนสุด) */}
-      {/* ------------------------------------------- */}
+      {/* ส่วนค้นหาสินค้า */}
       <div className="p-4 m-3 rounded-xl border border-[#660708] shadow-sm bg-white">
         <h3 className="font-bold mb-3" style={{ color: "#660708" }}>ค้นหาล้อแม็ก:</h3>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -224,7 +242,6 @@ export default function Home() {
           </div>
         ))}
         
-        {/* ข้อความแจ้งเตือนเมื่อไม่มีสินค้า */}
         {wheels.length === 0 && (
           <div className="col-span-full text-center py-12 px-4 border-2 border-dashed border-gray-300 rounded-xl mt-4 bg-gray-50">
             <span className="text-4xl mb-3 block">{hasSearched ? "🔍" : "⚙️"}</span>
@@ -235,7 +252,6 @@ export default function Home() {
         )}
       </div>
 
-      {/* ปุ่ม Floating Button สำหรับ Admin */}
       {userRole === 'admin' && (
         <button 
           onClick={() => setShowAdmin(true)} 
@@ -246,20 +262,16 @@ export default function Home() {
         </button>
       )}
 
-      {/* ------------------------------------------- */}
-      {/* DIALOG / MODAL สำหรับเพิ่มสินค้าใหม่ */}
-      {/* ------------------------------------------- */}
+      {/* MODAL */}
       {showAdmin && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
           <div className="bg-white rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-2xl border-2 border-[#660708]">
             
-            {/* Header Modal */}
             <div className="sticky top-0 bg-white px-6 py-4 border-b border-gray-200 flex justify-between items-center z-10">
               <h2 className="text-xl font-bold" style={{ color: "#660708" }}>เพิ่มสินค้าใหม่ (ล้อแม็ก)</h2>
               <button onClick={closeModal} className="text-gray-400 hover:text-red-500 text-2xl font-bold">✕</button>
             </div>
 
-            {/* ฟอร์มกรอกข้อมูล */}
             <div className="p-6 space-y-5">
               
               <div className="flex flex-col items-center justify-center border-2 border-dashed border-gray-300 rounded-xl p-4 bg-gray-50 relative">
