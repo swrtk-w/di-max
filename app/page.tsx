@@ -1,385 +1,165 @@
 "use client";
-import { useState } from "react";
+
+import { useState, useEffect, useMemo } from "react";
 import { supabase } from "@/lib/supabase";
-import imageCompression from "browser-image-compression";
+import { Trash2, Filter, Loader2, Plus, SlidersHorizontal } from "lucide-react";
 
-export default function Home() {
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [pin, setPin] = useState("");
-  const [errorMsg, setErrorMsg] = useState("");
+export default function CatalogPage() {
   const [userRole, setUserRole] = useState<string | null>(null);
-  
   const [wheels, setWheels] = useState<any[]>([]);
-  const [showAdmin, setShowAdmin] = useState(false);
-  const [isUploading, setIsUploading] = useState(false);
-  const [hasSearched, setHasSearched] = useState(false);
-  
-  const [filterData, setFilterData] = useState({
-    inches: "",
-    holes: "",
-    pcd: ""
-  });
+  const [loading, setLoading] = useState(true);
+  const [showMobileFilters, setShowMobileFilters] = useState(false);
 
-  const [formData, setFormData] = useState({ 
-    brand: "", 
-    design: "", 
-    inches: "", 
-    holes: "5", 
-    pcd: "114.3", 
-    color: "", 
-    type: "", 
-    ea_price: "", 
-    pck_price: "", 
-    dsc_price: "" 
-  });
-  
-  const [file, setFile] = useState<File | null>(null);
-  const [preview, setPreview] = useState<string | null>(null);
+  const [filterData, setFilterData] = useState({ inches: "all", holes: "all", pcd: "all" });
+  const [isFilterApplied, setIsFilterApplied] = useState(false);
+  const [activeFilterData, setActiveFilterData] = useState(filterData);
 
-  const handlePinChange = async (val: string) => {
-    const numericValue = val.replace(/[^0-9]/g, "").slice(0, 6);
-    setPin(numericValue);
-    setErrorMsg("");
-
-    if (numericValue.length === 6) {
-      const { data } = await supabase
-        .from("users")
-        .select("*")
-        .eq("passcode", numericValue)
-        .eq("is_active", true)
-        .single();
-
-      if (data) {
-        setUserRole(data.role);
-        setIsLoggedIn(true);
-      } else {
-        setErrorMsg("รหัส PIN ไม่ถูกต้อง");
-        setPin("");
-      }
+  useEffect(() => {
+    const staff = sessionStorage.getItem("staff_session");
+    if (staff) {
+      const userData = JSON.parse(staff);
+      setUserRole(userData.role);
     }
-  };
+    const fetchWheels = async () => {
+      const { data } = await supabase.from("wheels").select("*");
+      if (data) setWheels(data);
+      setLoading(false);
+    };
+    fetchWheels();
+  }, []);
 
-  const filterWheels = async () => {
-    setHasSearched(true);
-    let query = supabase.from("wheels").select("*");
-    
-    if (filterData.inches) query = query.eq("inches", filterData.inches);
-    if (filterData.holes) query = query.eq("holes", filterData.holes);
-    if (filterData.pcd) query = query.eq("pcd", filterData.pcd);
-    
-    const { data } = await query;
-    if (data) setWheels(data);
-  };
+  const filteredWheels = useMemo(() => {
+    if (!isFilterApplied) return [];
+    return wheels.filter((w) => {
+      const matchesInches = activeFilterData.inches === "all" || String(w.inches) === activeFilterData.inches;
+      const matchesHoles = activeFilterData.holes === "all" || String(w.holes) === activeFilterData.holes;
+      const matchesPcd = activeFilterData.pcd === "all" || String(w.pcd) === activeFilterData.pcd;
+      return matchesInches && matchesHoles && matchesPcd;
+    });
+  }, [wheels, activeFilterData, isFilterApplied]);
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const selectedFile = e.target.files[0];
-      setFile(selectedFile);
-      setPreview(URL.createObjectURL(selectedFile));
-    }
-  };
-
-  const handleUpload = async () => {
-    if (!file || !formData.brand || !formData.design || !formData.inches) {
-      return alert("กรุณากรอกข้อมูลสำคัญให้ครบถ้วน (รูปภาพ, ยี่ห้อ, รุ่น, และขนาดขอบ)");
-    }
-
-    setIsUploading(true);
-    let uploadedFileName = ""; // สร้างตัวแปรไว้เก็บชื่อไฟล์ เผื่อต้องลบทิ้งตอน Error
-
-    try {
-      const compressed = await imageCompression(file, { maxSizeMB: 0.1, maxWidthOrHeight: 800 });
-      
-      const safeBrand = formData.brand.trim().replace(/\s+/g, '_').replace(/[\/\\]/g, '-');
-      const safeDesign = formData.design.trim().replace(/\s+/g, '_').replace(/[\/\\]/g, '-');
-      
-      const baseFileName = `${safeBrand}_${safeDesign}_${formData.inches}x${formData.holes}H${formData.pcd}`;
-      let finalFileName = `${baseFileName}.webp`;
-
-      const { data: existingFiles } = await supabase.storage
-        .from("wheel-images")
-        .list("", { search: baseFileName });
-
-      if (existingFiles && existingFiles.length > 0) {
-        let counter = 1;
-        while (existingFiles.some(f => f.name === finalFileName)) {
-          finalFileName = `${baseFileName}-${counter}.webp`;
-          counter++;
-        }
-      }
-
-      // 1. อัปโหลดภาพ
-      const { error: uploadError } = await supabase.storage.from("wheel-images").upload(finalFileName, compressed);
-      if (uploadError) throw uploadError;
-      
-      uploadedFileName = finalFileName; // จำชื่อไฟล์ไว้ เผื่อต้อง Rollback
-
-      // 2. ดึง URL ของภาพ
-      const { data: urlData } = supabase.storage.from("wheel-images").getPublicUrl(finalFileName);
-      
-      // 3. บันทึกข้อมูลลง Database
-      const { error: insertError } = await supabase.from("wheels").insert({ 
-        ...formData, 
-        image_url: urlData.publicUrl 
-      });
-
-      // 4. ถ้าบันทึก Database ไม่สำเร็จ ให้ลบรูปทิ้ง (Rollback)
-      if (insertError) {
-        await supabase.storage.from("wheel-images").remove([uploadedFileName]);
-        throw insertError; // โยน Error ไปแสดงผล
-      }
-
-      // 5. ถ้าทุกอย่างผ่านฉลุย
-      alert("บันทึกข้อมูลสำเร็จ!");
-      closeModal();
-      
-      if (hasSearched) filterWheels();
-    } catch (error: any) {
-      // ในกรณีที่พังตั้งแต่ขั้นตอนบีบอัด หรืออัปโหลดไฟล์ หรือมี Error อื่นๆ
-      alert("เกิดข้อผิดพลาด: " + error.message);
-    } finally {
-      setIsUploading(false);
-    }
-  };
-
-  const handleDelete = async (id: string, imageUrl: string) => {
-    if (!confirm("ยืนยันการลบสินค้านี้?")) return;
-    const fileName = imageUrl.split('/').pop();
-    if (fileName) {
-      await supabase.storage.from("wheel-images").remove([fileName]);
-    }
+  const handleDelete = async (id: string, url: string) => {
+    if (!confirm("ยืนยันการลบสินค้า?")) return;
     await supabase.from("wheels").delete().eq("id", id);
-    filterWheels();
+    setWheels(wheels.filter(w => w.id !== id));
   };
 
-  const closeModal = () => {
-    setShowAdmin(false);
-    setPreview(null);
-    setFile(null);
-    setFormData({ brand: "", design: "", inches: "", holes: "5", pcd: "114.3", color: "", type: "", ea_price: "", pck_price: "", dsc_price: "" });
-  };
-
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
-  };
-
-  const handleFilterChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const { name, value } = e.target;
-    setFilterData(prev => ({ ...prev, [name]: value }));
-  };
-
-  // --- หน้าจอ Login ---
-  if (!isLoggedIn) return (
-    <div className="flex h-screen items-center justify-center p-6" style={{ backgroundColor: "#F5F3F4" }}>
-      <div className="w-full max-w-sm p-8 rounded-2xl shadow-xl border border-[#660708] text-center bg-white">
-        <h2 className="text-2xl font-bold mb-6" style={{ color: "#660708" }}>กรอก PIN Code</h2>
-        <input 
-          type="password" maxLength={6} value={pin}
-          className="w-full border-b-4 border-[#660708] p-3 mb-4 text-center text-3xl tracking-[0.5em] focus:outline-none" 
-          style={{ color: "#161A1D" }} placeholder="------" 
-          onChange={(e) => handlePinChange(e.target.value)} 
-        />
-        {errorMsg && <p className="text-sm font-bold animate-pulse" style={{ color: "#E5383B" }}>{errorMsg}</p>}
-      </div>
+  const FilterControls = () => (
+    <div className="flex flex-col gap-3 w-full">
+      <select 
+        value={filterData.inches} 
+        className="w-full bg-[#131313] p-3 rounded-lg border border-[#414755] text-sm" 
+        onChange={(e) => setFilterData({...filterData, inches: e.target.value})}
+      >
+        <option value="all">ทุกขนาด</option>
+        <option value="15">15 นิ้ว</option>
+        <option value="16">16 นิ้ว</option>
+        <option value="17">17 นิ้ว</option>
+        <option value="18">18 นิ้ว</option>
+        <option value="20">20 นิ้ว</option>
+      </select>
+      <select 
+        value={filterData.holes} 
+        className="w-full bg-[#131313] p-3 rounded-lg border border-[#414755] text-sm" 
+        onChange={(e) => setFilterData({...filterData, holes: e.target.value})}
+      >
+        <option value="all">ทุกรู</option>
+        <option value="4">4 รู</option>
+        <option value="5">5 รู</option>
+        <option value="6">6 รู</option>
+      </select>
+      <select 
+        value={filterData.pcd} 
+        className="w-full bg-[#131313] p-3 rounded-lg border border-[#414755] text-sm" 
+        onChange={(e) => setFilterData({...filterData, pcd: e.target.value})}
+      >
+        <option value="all">ทุกระยะ PCD</option>
+        <option value="100">100</option>
+        <option value="114.3">114.3</option>
+        <option value="139.7">130</option>
+        <option value="139.7">139.7</option>
+      </select>
+      <button 
+        onClick={() => { setActiveFilterData(filterData); setIsFilterApplied(true); setShowMobileFilters(false); }}
+        className="w-full bg-[#adc6ff] text-[#002e69] font-bold py-3 rounded-lg text-sm uppercase"
+      >
+        ใช้ตัวกรอง
+      </button>
+      {(userRole === 'admin' || userRole === 'owner') && (
+        <button className="w-full border border-[#adc6ff] text-[#adc6ff] font-bold py-3 rounded-lg text-sm uppercase flex items-center justify-center gap-2">
+          <Plus size={16} /> เพิ่มสินค้า
+        </button>
+      )}
     </div>
   );
 
-  // --- หน้าจอหลัก ---
   return (
-    <div className="min-h-screen pb-20 relative" style={{ backgroundColor: "#F5F3F4" }}>
-      <header className="p-4 border-b border-[#660708] flex justify-between items-center sticky top-0 z-10 bg-white shadow-sm">
-        <h1 className="text-xl font-bold" style={{ color: "#660708" }}>Wheels Catalog</h1>
-        <button onClick={() => setIsLoggedIn(false)} className="text-sm underline" style={{ color: "#A4161A" }}>ออกจากระบบ</button>
-      </header>
+    <div className="flex min-h-screen bg-[#131313] text-[#e5e2e1]">
+      <aside className="hidden md:flex w-64 border-r border-[#414755] p-6 flex-col gap-6 bg-[#1c1b1b]">
+        <h2 className="font-bold uppercase text-[#adc6ff]">ตัวกรองข้อมูล</h2>
+        <FilterControls />
+      </aside>
 
-      {/* ส่วนค้นหาสินค้า */}
-      <div className="p-4 m-3 rounded-xl border border-[#660708] shadow-sm bg-white">
-        <h3 className="font-bold mb-3" style={{ color: "#660708" }}>ค้นหาล้อแม็ก:</h3>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <select name="inches" className="border border-[#660708] p-2 rounded-lg text-[#161A1D]" value={filterData.inches} onChange={handleFilterChange}>
-            <option value="">ทุกขอบ</option>
-            <option value="15">15"</option>
-            <option value="16">16"</option>
-            <option value="17">17"</option>
-            <option value="18">18"</option>
-            <option value="20">20"</option>
-          </select>
-          
-          <select name="holes" className="border border-[#660708] p-2 rounded-lg text-[#161A1D]" value={filterData.holes} onChange={handleFilterChange}>
-            <option value="">ทุกรู</option>
-            <option value="4">4H</option>
-            <option value="5">5H</option>
-            <option value="6">6H</option>
-          </select>
-          
-          <select name="pcd" className="border border-[#660708] p-2 rounded-lg text-[#161A1D]" value={filterData.pcd} onChange={handleFilterChange}>
-            <option value="">ทุก PCD</option>
-            <option value="100">100</option>
-            <option value="114.3">114.3</option>
-            <option value="130">130</option>
-            <option value="139.7">139.7</option>
-          </select>
-          
-          <button onClick={filterWheels} className="p-2 rounded-lg font-bold text-white transition-opacity hover:opacity-90 shadow-sm" style={{ backgroundColor: "#E5383B" }}>ค้นหา</button>
+      <main className="flex-1 p-3 md:p-8">
+        <div className="md:hidden mb-4 flex justify-between items-center bg-[#1c1b1b] p-3 rounded-lg border border-[#414755]">
+          <span className="font-bold text-sm">ระบบกรองข้อมูล</span>
+          <button onClick={() => setShowMobileFilters(!showMobileFilters)} className="p-2 bg-[#131313] rounded-md border border-[#414755]">
+            <SlidersHorizontal size={18} />
+          </button>
         </div>
-      </div>
+        {showMobileFilters && <div className="md:hidden mb-4 bg-[#1c1b1b] p-4 rounded-lg border border-[#414755]"><FilterControls /></div>}
 
-      {/* ส่วนแสดงรายการสินค้า */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 p-4">
-        {wheels.map((w) => (
-          <div key={w.id} className="p-3 rounded-xl shadow-md border border-[#660708] flex flex-col relative bg-white hover:shadow-lg transition-shadow">
-            {userRole === 'admin' && (
-              <button onClick={() => handleDelete(w.id, w.image_url)} className="absolute top-2 right-2 bg-red-600 text-white w-7 h-7 rounded-full text-xs font-bold z-10 flex items-center justify-center hover:bg-red-700">✕</button>
-            )}
-            <img src={w.image_url} alt={w.design} className="w-full aspect-square object-cover rounded-lg border border-gray-200" />
-            <div className="mt-3" style={{ color: "#161A1D" }}>
-              <h3 className="font-bold text-sm truncate uppercase">{w.brand} - {w.design}</h3>
-              <p className="text-xs text-gray-600 mt-1">ขอบ {w.inches} | {w.holes}H {w.pcd}</p>
-              {w.color && <p className="text-xs text-gray-400">สี: {w.color}</p>}
-              <p className="text-xs font-semibold mt-1 text-[#E5383B]">ชุดละ: {w.pck_price ? `${Number(w.pck_price).toLocaleString()} ฿` : '-'}</p>
-            </div>
-          </div>
-        ))}
-        
-        {wheels.length === 0 && (
-          <div className="col-span-full text-center py-12 px-4 border-2 border-dashed border-gray-300 rounded-xl mt-4 bg-gray-50">
-            <span className="text-4xl mb-3 block">{hasSearched ? "🔍" : "⚙️"}</span>
-            <p className="text-gray-600 font-medium">
-              {hasSearched ? "ไม่พบข้อมูลสินค้าที่คุณค้นหา" : "กรุณาเลือกตัวกรองและกดค้นหาเพื่อดูสินค้า"}
-            </p>
+        {!isFilterApplied ? (
+          <div className="flex flex-col items-center justify-center h-[50vh] text-[#8b90a0]"><Filter size={48} className="mb-4 opacity-50"/><p className="text-sm">เลือกตัวกรองและกด "ใช้ตัวกรอง"</p></div>
+        ) : loading ? (
+          <div className="flex justify-center items-center h-[50vh]"><Loader2 className="animate-spin text-[#adc6ff]" size={40} /></div>
+        ) : (
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+            {filteredWheels.map((w) => (
+              <div key={w.id} className="group relative flex flex-col bg-[#1c1b1b] border border-[#414755] overflow-hidden rounded-xl transition-all hover:border-[#adc6ff]/50 w-[160px] sm:w-[220px]">
+                {(userRole === 'admin' || userRole === 'owner') && (
+                  <button onClick={() => handleDelete(w.id, w.image_url)} className="absolute top-2 right-2 bg-[#93000a] text-[#ffdad6] w-7 h-7 rounded flex items-center justify-center z-10 hover:bg-[#ffb4ab]">
+                    <Trash2 size={14} />
+                  </button>
+                )}
+<div className="w-full h-auto aspect-square max-w-[220px] max-h-[220px] mx-auto bg-[#201f1f] relative overflow-hidden flex items-center justify-center">
+  <img 
+    src={w.image_url} 
+    alt={w.design} 
+    className="object-contain w-full h-full group-hover:scale-110 transition-transform duration-700" 
+  />
+</div>
+                <div className="p-2 sm:p-4 flex flex-col gap-2">
+                  <h3 className="text-xs sm:text-base font-bold text-[#e5e2e1] truncate uppercase">{w.brand} - {w.design}</h3>
+                  <div className="grid grid-cols-3 bg-[#131313] rounded-lg p-1 sm:p-2 text-center border border-[#414755]/50">
+                    <div><p className="text-[8px] sm:text-[9px] text-[#8b90a0] uppercase">นิ้ว</p><p className="font-bold text-[#adc6ff] text-[10px] sm:text-sm">{w.inches}"</p></div>
+                    <div><p className="text-[8px] sm:text-[9px] text-[#8b90a0] uppercase">รู</p><p className="font-bold text-[#adc6ff] text-[10px] sm:text-sm">{w.holes}</p></div>
+                    <div><p className="text-[8px] sm:text-[9px] text-[#8b90a0] uppercase">PCD</p><p className="font-bold text-[#adc6ff] text-[10px] sm:text-sm">{w.pcd}</p></div>
+                  </div>
+                  
+                  <div className="w-full bg-[#adc6ff]/10 border border-[#adc6ff]/20 text-[#adc6ff] py-1 sm:py-1.5 px-2 rounded flex justify-between items-center">
+                    <span className="text-[8px] sm:text-[9px] font-bold uppercase">ราคาชุด</span>
+                    <span className="font-bold text-xs sm:text-sm">{w.pck_price ? `฿${Number(w.pck_price).toLocaleString()}` : '-'}</span>
+                  </div>
+                  
+                  {userRole === 'admin' && (
+                    <div className="flex justify-between gap-1 sm:gap-2">
+                      <div className="flex-1 bg-[#131313] py-1 px-1 sm:px-2 rounded border border-[#414755]">
+                        <p className="text-[7px] sm:text-[8px] text-[#8b90a0] uppercase">ราคาวง</p>
+                        <p className="font-bold text-[10px] sm:text-xs">{w.ea_price ? `฿${Number(w.ea_price).toLocaleString()}` : '-'}</p>
+                      </div>
+                      <div className="flex-1 bg-[#93000a]/10 py-1 px-1 sm:px-2 rounded border border-[#ffb4ab]/30">
+                        <p className="text-[7px] sm:text-[8px] text-[#ffb4ab] uppercase">ลดเหลือ</p>
+                        <p className="font-bold text-[10px] sm:text-xs text-[#ffb4ab]">{w.dsc_price ? `฿${Number(w.dsc_price).toLocaleString()}` : '-'}</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
           </div>
         )}
-      </div>
-
-      {userRole === 'admin' && (
-        <button 
-          onClick={() => setShowAdmin(true)} 
-          className="fixed bottom-6 right-6 w-14 h-14 rounded-full shadow-2xl text-3xl text-white flex items-center justify-center hover:scale-105 transition-transform" 
-          style={{ backgroundColor: "#E5383B" }}
-        >
-          +
-        </button>
-      )}
-
-      {/* MODAL */}
-      {showAdmin && (
-        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-2xl border-2 border-[#660708]">
-            
-            <div className="sticky top-0 bg-white px-6 py-4 border-b border-gray-200 flex justify-between items-center z-10">
-              <h2 className="text-xl font-bold" style={{ color: "#660708" }}>เพิ่มสินค้าใหม่ (ล้อแม็ก)</h2>
-              <button onClick={closeModal} className="text-gray-400 hover:text-red-500 text-2xl font-bold">✕</button>
-            </div>
-
-            <div className="p-6 space-y-5">
-              
-              <div className="flex flex-col items-center justify-center border-2 border-dashed border-gray-300 rounded-xl p-4 bg-gray-50 relative">
-                {preview ? (
-                  <div className="relative w-48 h-48">
-                    <img src={preview} alt="Preview" className="w-full h-full object-cover rounded-lg border border-gray-300 shadow-sm" />
-                    <button onClick={() => { setPreview(null); setFile(null); }} className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs shadow-md">✕</button>
-                  </div>
-                ) : (
-                  <label className="flex flex-col items-center cursor-pointer text-gray-500 hover:text-[#E5383B]">
-                    <span className="text-4xl mb-2">📸</span>
-                    <span className="text-sm font-medium">คลิกเพื่ออัปโหลดรูปภาพ</span>
-                    <input type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
-                  </label>
-                )}
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-bold mb-1 text-[#161A1D]">ยี่ห้อ (Brand) <span className="text-red-500">*</span></label>
-                  <input type="text" name="brand" value={formData.brand} onChange={handleInputChange} className="w-full border p-2 rounded-lg focus:ring-2 focus:ring-[#E5383B] outline-none" placeholder="เช่น TE37" />
-                </div>
-                <div>
-                  <label className="block text-sm font-bold mb-1 text-[#161A1D]">รุ่น (Design) <span className="text-red-500">*</span></label>
-                  <input type="text" name="design" value={formData.design} onChange={handleInputChange} className="w-full border p-2 rounded-lg focus:ring-2 focus:ring-[#E5383B] outline-none" placeholder="เช่น ก้านตรง" />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-sm font-bold mb-1 text-[#161A1D]">ขอบ (Inches) <span className="text-red-500">*</span></label>
-                  <select name="inches" value={formData.inches} onChange={handleInputChange} className="w-full border p-2 rounded-lg focus:ring-2 outline-none text-[#161A1D]">
-                    <option value="">เลือกขอบ</option>
-                    <option value="15">15"</option>
-                    <option value="16">16"</option>
-                    <option value="17">17"</option>
-                    <option value="18">18"</option>
-                    <option value="20">20"</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-bold mb-1 text-[#161A1D]">รู (Holes)</label>
-                  <select name="holes" value={formData.holes} onChange={handleInputChange} className="w-full border p-2 rounded-lg focus:ring-2 outline-none text-[#161A1D]">
-                    <option value="4">4H</option>
-                    <option value="5">5H</option>
-                    <option value="6">6H</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-bold mb-1 text-[#161A1D]">ระยะ (PCD)</label>
-                  <select name="pcd" value={formData.pcd} onChange={handleInputChange} className="w-full border p-2 rounded-lg focus:ring-2 outline-none text-[#161A1D]">
-                    <option value="100">100</option>
-                    <option value="114.3">114.3</option>
-                    <option value="130">130</option>
-                    <option value="139.7">139.7</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-bold mb-1 text-[#161A1D]">สี (Color)</label>
-                  <input type="text" name="color" value={formData.color} onChange={handleInputChange} className="w-full border p-2 rounded-lg focus:ring-2 outline-none" placeholder="เช่น น้ำตาล, ดำเงา" />
-                </div>
-                <div>
-                  <label className="block text-sm font-bold mb-1 text-[#161A1D]">สไตล์ (Type)</label>
-                  <input type="text" name="type" value={formData.type} onChange={handleInputChange} className="w-full border p-2 rounded-lg focus:ring-2 outline-none" placeholder="เช่น รถเก๋ง, กระบะ" />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-3 gap-4 border-t border-gray-200 pt-4 mt-2">
-                <div>
-                  <label className="block text-sm font-bold mb-1 text-[#161A1D]">ราคาวง (EA)</label>
-                  <input type="number" name="ea_price" value={formData.ea_price} onChange={handleInputChange} className="w-full border p-2 rounded-lg focus:ring-2 outline-none" placeholder="0" />
-                </div>
-                <div>
-                  <label className="block text-sm font-bold mb-1 text-[#161A1D]">ราคาชุด (Pack)</label>
-                  <input type="number" name="pck_price" value={formData.pck_price} onChange={handleInputChange} className="w-full border p-2 rounded-lg focus:ring-2 outline-none border-[#A4161A]/30" placeholder="0" />
-                </div>
-                <div>
-                  <label className="block text-sm font-bold mb-1 text-[#161A1D]">ราคาลด (Discount)</label>
-                  <input type="number" name="dsc_price" value={formData.dsc_price} onChange={handleInputChange} className="w-full border p-2 rounded-lg focus:ring-2 outline-none text-[#E5383B]" placeholder="0" />
-                </div>
-              </div>
-
-            </div>
-
-            <div className="sticky bottom-0 bg-gray-50 px-6 py-4 border-t border-gray-200 flex justify-end space-x-3 rounded-b-2xl">
-              <button 
-                onClick={closeModal} 
-                className="px-5 py-2 font-bold text-gray-600 bg-white border border-gray-300 rounded-lg hover:bg-gray-100 transition-colors"
-                disabled={isUploading}
-              >
-                ยกเลิก
-              </button>
-              <button 
-                onClick={handleUpload} 
-                className={`px-5 py-2 font-bold text-white rounded-lg transition-colors flex items-center ${isUploading ? 'bg-gray-400 cursor-not-allowed' : 'bg-[#E5383B] hover:bg-[#BA1826]'}`}
-                disabled={isUploading}
-              >
-                {isUploading ? 'กำลังบันทึก...' : 'บันทึกข้อมูล'}
-              </button>
-            </div>
-
-          </div>
-        </div>
-      )}
-
+      </main>
     </div>
   );
 }
