@@ -1,24 +1,104 @@
-@import url('https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;700;800&family=JetBrains+Mono:wght@500&display=swap');
 @import "tailwindcss";
 
-@layer base {
-  body {
-    @apply bg-[#131313] text-[#e5e2e1] antialiased;
-    font-family: 'Prompt', sans-serif;
-  }
+/* ส่วนกำหนดฟอนต์สำหรับระบบ */
+@font-face {
+  font-family: 'Prompt';
+  src: url('/fonts/Prompt.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'JetBrainsMono-Local';
+  src: url('/fonts/JetBrainsMono.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* ส่วนกำหนดคอนฟิกูเรชันธีม Tailwind v4 */
+@theme {
+  --font-sans: 'Prompt', sans-serif;
+  --font-mono: 'JetBrainsMono-Local', monospace;
+  
+  --color-bg-main: var(--bg-main);
+  --color-bg-surface: var(--bg-surface);
+  --color-bg-image: var(--bg-image);
+  --color-text-primary: var(--text-primary);
+  --color-text-muted: var(--text-muted);
+  --color-text-dark-btn: var(--text-dark-btn);
+  --color-border-default: var(--border-color);
+  --color-accent: var(--accent-color);
+  --color-bg-accent-10: var(--bg-accent-10);
+  --color-border-accent-20: var(--border-accent-20);
+  --color-border-accent-50: var(--border-accent-50);
+  --color-danger-main: var(--danger-main);
+  --color-danger-bg-10: var(--danger-bg-10);
+  --color-danger-text: var(--danger-text);
+  --color-danger-border-30: var(--danger-border-30);
+  --color-danger-text-light: var(--danger-text-light);
+}
+
+/* ส่วนกำหนดชุดสีตามสิทธิ์ผู้ใช้งาน */
+:root, [data-theme="admin"], [data-theme="owner"] {
+  --bg-main: #131313;
+  --bg-surface: #1c1b1b;
+  --bg-image: #201f1f;
+  --text-primary: #e5e2e1;
+  --text-muted: #8b90a0;
+  --text-dark-btn: #002e69;
+  --border-color: #414755;
+  --accent-color: #adc6ff;
+  --bg-accent-10: rgba(173, 198, 255, 0.1);
+  --border-accent-20: rgba(173, 198, 255, 0.2);
+  --border-accent-50: rgba(173, 198, 255, 0.5);
+  --danger-main: #93000a;
+  --danger-bg-10: rgba(147, 0, 10, 0.1);
+  --danger-text: #ffb4ab;
+  --danger-border-30: rgba(255, 180, 171, 0.3);
+  --danger-text-light: #ffdad6;
+}
+
+[data-theme="customer"] {
+  --bg-main: #f8f9fa;               
+  --bg-surface: #ffffff;            
+  --bg-image: #f1f3f5;              
+  --text-primary: #0f172a;          
+  --text-muted: #64748b;            
+  --text-dark-btn: #ffffff;         
+  --border-color: #e2e8f0;          
+  --accent-color: #0f172a;          
+  --bg-accent-10: rgba(15, 23, 42, 0.05);
+  --border-accent-20: rgba(15, 23, 42, 0.1);
+  --border-accent-50: rgba(15, 23, 42, 0.3);
+  --danger-main: #dc2626;           
+  --danger-bg-10: rgba(220, 38, 38, 0.06);
+  --danger-text: #b91c1c;
+  --danger-border-30: rgba(220, 38, 38, 0.15);
+  --danger-text-light: #ffffff;
+}
+
+/* ส่วนกำหนดสไตล์สากลของโครงสร้างเว็บ */
+body {
+  background-color: var(--bg-main);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
 }
 
 .font-mono-spec {
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font-mono);
 }
 
+/* ส่วนสไตล์ของแถบเลื่อนหน้าจอ */
 ::-webkit-scrollbar {
   width: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: #131313;
+  background: var(--bg-main);
 }
 ::-webkit-scrollbar-thumb {
-  background: #414755;
+  background: var(--border-color);
   border-radius: 10px;
 }
