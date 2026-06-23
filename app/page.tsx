@@ -258,14 +258,14 @@ export default function CatalogPage() {
       </select>
       <button 
         onClick={() => { setActiveFilterData(filterData); setIsFilterApplied(true); setShowMobileFilters(false); }}
-        className="w-full bg-accent text-text-dark-btn font-bold py-3 rounded-lg text-sm uppercase cursor-pointer"
+        className="w-full bg-accent text-text-dark-btn font-bold py-3 rounded-lg text-sm cursor-pointer"
       >
         ใช้ตัวกรอง
       </button>
       {(userRole === 'admin') && (
         <button 
           onClick={() => setIsModalOpen(true)}
-          className="w-full border border-accent text-accent font-bold py-3 rounded-lg text-sm uppercase flex items-center justify-center gap-2 cursor-pointer"
+          className="w-full border border-accent text-accent font-bold py-3 rounded-lg text-sm flex items-center justify-center gap-2 cursor-pointer"
         >
           <Plus size={16} /> เพิ่มสินค้า
         </button>
@@ -277,7 +277,7 @@ export default function CatalogPage() {
     <div className="flex min-h-screen bg-bg-main text-text-primary">
       {/* แถบเมนูด้านข้างสำหรับกรองข้อมูลสินค้า (Desktop Sidebar Filter) */}
       <aside className="hidden md:flex w-64 border-r border-border-default p-6 flex-col gap-6 bg-bg-surface">
-        <h2 className="font-bold uppercase text-accent">
+        <h2 className="font-bold text-accent">
           ตัวกรองข้อมูล
         </h2>
         <FilterControls />
@@ -340,7 +340,7 @@ export default function CatalogPage() {
                     {w.brand}
                   </span>
                   {w.color && (
-                    <span className="inline-block bg-bg-accent-10 border border-border-accent-20 text-accent rounded-md px-2 py-0.5 text-[9px] sm:text-[10px] font-medium tracking-wide">
+                    <span className="inline-block bg-bg-accent-10 border border-border-accent-20 text-accent rounded-md px-2 py-0.5 text-[9px] sm:text-[10px] font-medium tracking-wide uppercase">
                       {w.color}
                     </span>
                   )}
@@ -354,22 +354,22 @@ export default function CatalogPage() {
                 {/* ตารางแสดงสเปกข้อมูลทางเทคนิค (นิ้ว, รู, PCD) */}
                 <div className="grid grid-cols-3 bg-bg-main rounded-xl p-2 text-center border border-border-default/60 font-mono-spec">
                   <div className="border-r border-border-default/30">
-                    <p className="text-[8px] sm:text-[9px] text-text-muted uppercase font-sans tracking-wide">ขนาด</p>
+                    <p className="text-[8px] sm:text-[9px] text-text-muted font-sans tracking-wide">ขนาด</p>
                     <p className="font-bold text-accent text-xs sm:text-sm mt-0.5">{w.inches}"</p>
                   </div>
                   <div className="border-r border-border-default/30">
-                    <p className="text-[8px] sm:text-[9px] text-text-muted uppercase font-sans tracking-wide">รู</p>
+                    <p className="text-[8px] sm:text-[9px] text-text-muted font-sans tracking-wide">รู</p>
                     <p className="font-bold text-accent text-xs sm:text-sm mt-0.5">{w.holes}H</p>
                   </div>
                   <div>
-                    <p className="text-[8px] sm:text-[9px] text-text-muted uppercase font-sans tracking-wide">PCD</p>
+                    <p className="text-[8px] sm:text-[9px] text-text-muted font-sans tracking-wide">PCD</p>
                     <p className="font-bold text-accent text-xs sm:text-sm mt-0.5">{w.pcd}</p>
                   </div>
                 </div>
                 
                 {/* ส่วนแสดงราคาสินค้าต่อชุด (ดันลงไปอยู่ล่างสุดเสมอเพื่อความเท่ากันของการ์ด) */}
                 <div className="mt-auto w-full bg-bg-accent-10 border border-border-accent-20 text-accent py-2 px-3 rounded-xl flex justify-between items-center shadow-inner">
-                  <span className="text-[9px] sm:text-[10px] font-bold uppercase tracking-wider text-text-muted">ราคาชุดละ</span>
+                  <span className="text-[9px] sm:text-[10px] font-bold tracking-wider text-text-muted">ราคาชุดละ</span>
                   <span className="font-black text-sm sm:text-base font-mono-spec">
                     {w.pck_price ? `฿${Number(w.pck_price).toLocaleString()}` : '-'}
                   </span>
@@ -379,13 +379,13 @@ export default function CatalogPage() {
                 {userRole === 'admin' && (
                   <div className="grid grid-cols-2 gap-1.5 font-mono-spec pt-1.5 border-t border-border-default/30">
                     <div className="bg-bg-main py-1 px-2 rounded-lg border border-border-default flex flex-col justify-between">
-                      <span className="text-[8px] sm:text-[9px] text-text-muted uppercase font-sans">วงละ</span>
+                      <span className="text-[8px] sm:text-[9px] text-text-muted font-sans">วงละ</span>
                       <span className="font-bold text-[10px] sm:text-xs text-right text-text-primary mt-0.5">
                         {w.ea_price ? `฿${Number(w.ea_price).toLocaleString()}` : '-'}
                       </span>
                     </div>
                     <div className="bg-danger-bg-10 py-1 px-2 rounded-lg border border-danger-border-30 flex flex-col justify-between">
-                      <span className="text-[8px] sm:text-[9px] text-danger-text uppercase font-sans">ลดได้</span>
+                      <span className="text-[8px] sm:text-[9px] text-danger-text font-sans">ลดได้</span>
                       <span className="font-bold text-[10px] sm:text-xs text-danger-text text-right mt-0.5">
                         {w.dsc_price ? `฿${Number(w.dsc_price).toLocaleString()}` : '-'}
                       </span>
@@ -415,9 +415,8 @@ export default function CatalogPage() {
             </div>
 
             <form onSubmit={handleFormSubmit} className="space-y-4">
-              {/* ส่วนจัดการรูปภาพสินค้า */}
               <div className="space-y-2">
-                <label className="text-xs font-bold text-text-muted uppercase">รูปภาพสินค้า</label>
+                <label className="text-xs font-bold text-text-muted">รูปภาพสินค้า</label>
                 <div className="flex flex-col items-center justify-center border border-dashed border-border-default rounded-xl p-4 bg-bg-main min-h-35">
                   {imagePreview ? (
                     <div className="relative w-32 h-32 bg-bg-image rounded-lg overflow-hidden flex items-center justify-center">
@@ -449,54 +448,54 @@ export default function CatalogPage() {
               {/* ข้อมูลสเปกทั่วไป แบรนด์ และ ลาย */}
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
-                  <label className="text-xs font-bold text-text-muted uppercase">ยี่ห้อ</label>
+                  <label className="text-xs font-bold text-text-muted">ยี่ห้อ</label>
                   <input 
                     type="text" 
                     required
                     placeholder="เช่น Emotion-R"
                     value={formData.brand}
                     onChange={(e) => setFormData({...formData, brand: e.target.value})}
-                    className="w-full bg-bg-main p-2.5 rounded-lg border border-border-default text-sm text-text-primary outline-none focus:border-accent"
+                    className="w-full bg-bg-main p-2.5 rounded-lg border border-border-default text-sm text-text-primary outline-none focus:border-accent uppercase"
                   />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-xs font-bold text-text-muted uppercase">ลาย / รุ่น</label>
+                  <label className="text-xs font-bold text-text-muted">ลาย / รุ่น</label>
                   <input 
                     type="text" 
                     required
                     placeholder="เช่น TE37"
                     value={formData.design}
                     onChange={(e) => setFormData({...formData, design: e.target.value})}
-                    className="w-full bg-bg-main p-2.5 rounded-lg border border-border-default text-sm text-text-primary outline-none focus:border-accent"
+                    className="w-full bg-bg-main p-2.5 rounded-lg border border-border-default text-sm text-text-primary outline-none focus:border-accent uppercase"
                   />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
-                  <label className="text-xs font-bold text-text-muted uppercase">สี</label>
+                  <label className="text-xs font-bold text-text-muted">สี</label>
                   <input 
                     type="text" 
                     placeholder="เช่น ดำเงา, ดำด้าน"
                     value={formData.color}
                     onChange={(e) => setFormData({...formData, color: e.target.value})}
-                    className="w-full bg-bg-main p-2.5 rounded-lg border border-border-default text-sm text-text-primary outline-none focus:border-accent"
+                    className="w-full bg-bg-main p-2.5 rounded-lg border border-border-default text-sm text-text-primary outline-none focus:border-accent uppercase"
                   />
                 </div>
                                 <div className="space-y-1">
-                  <label className="text-xs font-bold text-text-muted uppercase">รถ</label>
+                  <label className="text-xs font-bold text-text-muted">รถ</label>
                   <input 
                     type="text" 
                     placeholder="เช่น เก๋ง, ออฟโร้ด"
                     value={formData.type}
                     onChange={(e) => setFormData({...formData, type: e.target.value})}
-                    className="w-full bg-bg-main p-2.5 rounded-lg border border-border-default text-sm text-text-primary outline-none focus:border-accent"
+                    className="w-full bg-bg-main p-2.5 rounded-lg border border-border-default text-sm text-text-primary outline-none focus:border-accent uppercase"
                   />
                 </div>
               </div>
               {/* ข้อมูลทางเทคนิคขนาด รู และ PCD */}
               <div className="grid grid-cols-3 gap-2">
                 <div className="space-y-1">
-                  <label className="text-xs font-bold text-text-muted uppercase">ขนาด (นิ้ว)</label>
+                  <label className="text-xs font-bold text-text-muted">ขนาด (นิ้ว)</label>
                   <select 
                     value={formData.inches} 
                     className="w-full bg-bg-main p-2.5 rounded-lg border border-border-default text-sm text-text-primary outline-none focus:border-accent" 
@@ -510,7 +509,7 @@ export default function CatalogPage() {
                   </select>
                 </div>
                 <div className="space-y-1">
-                  <label className="text-xs font-bold text-text-muted uppercase">จำนวนรู</label>
+                  <label className="text-xs font-bold text-text-muted">จำนวนรู</label>
                   <select 
                     value={formData.holes} 
                     className="w-full bg-bg-main p-2.5 rounded-lg border border-border-default text-sm text-text-primary outline-none focus:border-accent" 
@@ -522,7 +521,7 @@ export default function CatalogPage() {
                   </select>
                 </div>
                 <div className="space-y-1">
-                  <label className="text-xs font-bold text-text-muted uppercase">ระยะ PCD</label>
+                  <label className="text-xs font-bold text-text-muted">ระยะ PCD</label>
                   <select 
                     value={formData.pcd} 
                     className="w-full bg-bg-main p-2.5 rounded-lg border border-border-default text-sm text-text-primary outline-none focus:border-accent" 
@@ -539,7 +538,7 @@ export default function CatalogPage() {
               {/* ข้อมูลราคาจำหน่ายทัังหมดที่ Admin มองเห็น */}
               <div className="grid grid-cols-3 gap-2">
                 <div className="space-y-1">
-                  <label className="text-xs font-bold text-text-muted uppercase">ราคาต่อชุด</label>
+                  <label className="text-xs font-bold text-text-muted">ราคาต่อชุด</label>
                   <input 
                     type="number" 
                     placeholder="บาท"
@@ -549,7 +548,7 @@ export default function CatalogPage() {
                   />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-xs font-bold text-text-muted uppercase">ราคาต่อวง</label>
+                  <label className="text-xs font-bold text-text-muted">ราคาต่อวง</label>
                   <input 
                     type="number" 
                     placeholder="บาท"
@@ -559,7 +558,7 @@ export default function CatalogPage() {
                   />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-xs font-bold text-danger-text uppercase">ส่วนลดแอดมิน</label>
+                  <label className="text-xs font-bold text-danger-text">ส่วนลดแอดมิน</label>
                   <input 
                     type="number" 
                     placeholder="บาท"
@@ -576,14 +575,14 @@ export default function CatalogPage() {
                   type="button"
                   onClick={() => { setIsModalOpen(false); setImageFile(null); setImagePreview(null); }} 
                   disabled={submitting}
-                  className="flex-1 border border-border-default text-text-muted font-bold py-3 rounded-lg text-sm uppercase cursor-pointer disabled:opacity-50"
+                  className="flex-1 border border-border-default text-text-muted font-bold py-3 rounded-lg text-sm cursor-pointer disabled:opacity-50"
                 >
                   ยกเลิก
                 </button>
                 <button 
                   type="submit"
                   disabled={submitting}
-                  className="flex-1 bg-accent text-text-dark-btn font-bold py-3 rounded-lg text-sm uppercase flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                  className="flex-1 bg-accent text-text-dark-btn font-bold py-3 rounded-lg text-sm flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
                 >
                   {submitting ? (
                     <>
