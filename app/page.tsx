@@ -102,28 +102,28 @@ export default function CatalogPage() {
         counter++;
       }
 
-      // 2. บีบอัดรูปภาพผ่าน HTML5 Canvas ให้เป็น WebP ขนาดกว้างยาวไม่เกิน 250px
+      // 2. บีบอัดรูปภาพผ่าน HTML5 Canvas ให้เป็น WebP ขนาดกว้างยาวไม่เกิน 500px และขนาดไม่เกิน 100KB
       const compressedBlob = await new Promise<Blob>((resolve, reject) => {
         const reader = new FileReader();
         reader.readAsDataURL(imageFile);
         reader.onload = (event) => {
           const img = new Image();
           img.src = event.target?.result as string;
-          img.onload = () => {
+          img.onload = async () => { // เปลี่ยนเป็น async เพื่อให้ใช้ await ภายในฟังก์ชันได้
             const canvas = document.createElement("canvas");
             let width = img.width;
             let height = img.height;
 
-            // คำนวณ Aspect Ratio ล็อกด้านกว้างยาวสูงสุดไว้ไม่เกิน 250px
+            // คำนวณ Aspect Ratio ล็อกด้านกว้างยาวสูงสุดไว้ไม่เกิน 500px
             if (width > height) {
-              if (width > 250) {
-                height = Math.round((height * 250) / width);
-                width = 250;
+              if (width > 500) {
+                height = Math.round((height * 500) / width);
+                width = 500;
               }
             } else {
-              if (height > 250) {
-                width = Math.round((width * 250) / height);
-                height = 250;
+              if (height > 500) {
+                width = Math.round((width * 500) / height);
+                height = 500;
               }
             }
 
@@ -132,14 +132,26 @@ export default function CatalogPage() {
             const ctx = canvas.getContext("2d");
             ctx?.drawImage(img, 0, 0, width, height);
 
-            canvas.toBlob(
-              (blob) => {
-                if (blob) resolve(blob);
-                else reject(new Error("การบีบอัดรูปภาพล้มเหลว"));
-              },
-              "image/webp",
-              0.85 // ค่าคุณภาพของภาพ WebP
-            );
+            // ฟังก์ชัน Helper สำหรับแปลง Canvas เป็น Blob ในรูปแบบ Async/Await
+            const getBlobFromCanvas = (quality: number): Promise<Blob | null> => {
+              return new Promise((res) => canvas.toBlob(res, "image/webp", quality));
+            };
+
+            let currentQuality = 0.85; // เริ่มต้นที่คุณภาพ 85%
+            let blob = await getBlobFromCanvas(currentQuality);
+
+            // วนลูปเพื่อลดคุณภาพลงทีละ 5% (0.05) ตราบใดที่ขนาดไฟล์ยังเกิน 100KB และคุณภาพไม่ต่ำเกินไป (ขั้นต่ำ 0.1)
+            const MAX_SIZE_BYTES = 100 * 1024; // 100KB
+            while (blob && blob.size > MAX_SIZE_BYTES && currentQuality > 0.1) {
+              currentQuality -= 0.05; 
+              blob = await getBlobFromCanvas(currentQuality);
+            }
+
+            if (blob) {
+              resolve(blob);
+            } else {
+              reject(new Error("การบีบอัดรูปภาพล้มเหลว"));
+            }
           };
         };
         reader.onerror = (err) => reject(err);
