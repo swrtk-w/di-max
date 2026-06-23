@@ -92,9 +92,9 @@ export default function CatalogPage() {
       let finalFileName = `${baseFileName}.webp`;
       let counter = 1;
 
-      // ลูปตรวจสอบหาชื่อไฟล์ที่ซ้ำใน Supabase Storage Bucket 'wheels'
+      // ลูปตรวจสอบหาชื่อไฟล์ที่ซ้ำใน Supabase Storage Bucket 'wheels-images'
       while (true) {
-        const { data } = await supabase.storage.from("wheels").list("", { search: finalFileName });
+        const { data } = await supabase.storage.from("wheels-images").list("", { search: finalFileName });
         const exists = data?.some((f) => f.name === finalFileName);
         if (!exists) break;
         
@@ -149,13 +149,13 @@ export default function CatalogPage() {
 
       // 3. อัปโหลดไฟล์รูปภาพที่ผ่านการบีบอัดเรียบร้อยแล้วขึ้นไปที่ Supabase Storage
       const { error: uploadError } = await supabase.storage
-        .from("wheels")
+        .from("wheels-images")
         .upload(finalFileName, processedFile);
 
       if (uploadError) throw uploadError;
 
       // 4. ดึงลิงก์ Public URL เพื่อเตรียมบันทึกลง Database
-      const { data: { publicUrl } } = supabase.storage.from("wheels").getPublicUrl(finalFileName);
+      const { data: { publicUrl } } = supabase.storage.from("wheels-images").getPublicUrl(finalFileName);
 
       // 5. ทำการ Insert ข้อมูลทั้งหมดเข้าสู่ตาราง 'wheels'
       const { data: insertData, error: insertError } = await supabase
