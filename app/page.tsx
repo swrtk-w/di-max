@@ -307,7 +307,7 @@ export default function CatalogPage() {
           /* ส่วนตารางกริดแสดงรายการสินค้าล้อแม็กซ์ทั้งหมด (Product Catalog Grid) */
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
           {filteredWheels.map((w) => (
-            /* การ์ดแสดงรายละเอียดของสินค้าแต่ละวง ดีไซน์ใหม่ (Product Card Item - Redesigned) */
+            /* การ์ดแสดงรายละเอียดของสินค้าแต่ละวง */
             <div 
               key={w.id} 
               className="group relative flex flex-col bg-bg-surface border border-border-default overflow-hidden rounded-2xl transition-all duration-300 hover:border-border-accent-50 hover:shadow-xl w-full max-w-60 mx-auto"
@@ -334,7 +334,7 @@ export default function CatalogPage() {
               {/* ส่วนข้อมูลรายละเอียดสินค้า */}
               <div className="p-3 sm:p-4 flex flex-col flex-1 gap-3">
                 
-                {/* แบรนด์สินค้า & Badge แสดงสี (Color Badge) */}
+                {/* แบรนด์สินค้า & สี */}
                 <div className="flex flex-wrap items-center gap-1.5">
                   <span className="text-[10px] font-black tracking-wider text-text-dark-btn uppercase bg-accent px-2 py-0.5 rounded-md shadow-sm">
                     {w.brand}
@@ -367,29 +367,43 @@ export default function CatalogPage() {
                   </div>
                 </div>
                 
-                {/* ส่วนแสดงราคาสินค้าต่อชุด (ดันลงไปอยู่ล่างสุดเสมอเพื่อความเท่ากันของการ์ด) */}
-                <div className="mt-auto w-full bg-bg-accent-10 border border-border-accent-20 text-accent py-2 px-3 rounded-xl flex justify-between items-center shadow-inner">
-                  <span className="text-[9px] sm:text-[10px] font-bold tracking-wider text-text-muted">ราคาชุดละ</span>
-                  <span className="font-black text-sm sm:text-base font-mono-spec">
-                    {w.pck_price ? `฿${Number(w.pck_price).toLocaleString()}` : '-'}
-                  </span>
-                </div>
-                
-                {/* ราคาวงเบื้องหลังและส่วนลดพิเศษสำหรับ Admin เท่านั้น */}
-                {userRole === 'admin' && (
-                  <div className="grid grid-cols-2 gap-1.5 font-mono-spec pt-1.5 border-t border-border-default/30">
-                    <div className="bg-bg-main py-1 px-2 rounded-lg border border-border-default flex flex-col justify-between">
-                      <span className="text-[8px] sm:text-[9px] text-text-muted font-sans">วงละ</span>
-                      <span className="font-bold text-[10px] sm:text-xs text-right text-text-primary mt-0.5">
-                        {w.ea_price ? `฿${Number(w.ea_price).toLocaleString()}` : '-'}
+                {/* ส่วนแสดงราคาสินค้าต่อชุด ที่ต้อง "กดค้าง" เพื่อดูราคาวงสำหรับ Admin */}
+                {userRole === 'admin' ? (
+                  <div 
+                    className="mt-auto w-full group select-none"
+                    onContextMenu={(e) => e.preventDefault()} // สำคัญมาก: ป้องกันไม่ให้เมนูของมือถือเด้งขึ้นมาตอนกดค้าง
+                  >
+                    {/* กล่องราคาชุดละ (เมื่อมีการกดค้าง คลาส group-active จะทำงาน) */}
+                    <div className="w-full bg-bg-accent-10 border border-border-accent-20 text-accent py-2 px-3 rounded-xl flex justify-between items-center shadow-inner cursor-pointer active:scale-[0.98] transition-transform">
+                      <span className="text-[9px] sm:text-[10px] font-bold tracking-wider text-text-muted">ราคาชุดละ</span>
+                      <span className="font-black text-sm sm:text-base font-mono-spec">
+                        {w.pck_price ? `฿${Number(w.pck_price).toLocaleString()}` : '-'}
                       </span>
                     </div>
-                    <div className="bg-danger-bg-10 py-1 px-2 rounded-lg border border-danger-border-30 flex flex-col justify-between">
-                      <span className="text-[8px] sm:text-[9px] text-danger-text font-sans">ลดได้</span>
-                      <span className="font-bold text-[10px] sm:text-xs text-danger-text text-right mt-0.5">
-                        {w.dsc_price ? `฿${Number(w.dsc_price).toLocaleString()}` : '-'}
-                      </span>
+                    
+                    {/* ราคาวงเบื้องหลังและส่วนลดพิเศษ จะเปลี่ยนจาก hidden เป็น grid ทันทีที่มีการกดค้าง (group-active) */}
+                    <div className="hidden group-active:grid grid-cols-2 gap-1.5 font-mono-spec pt-1.5 mt-1.5 border-t border-border-default/30">
+                      <div className="bg-bg-main py-1 px-2 rounded-lg border border-border-default flex flex-col justify-between">
+                        <span className="text-[8px] sm:text-[9px] text-text-muted font-sans">วงละ</span>
+                        <span className="font-bold text-[10px] sm:text-xs text-right text-text-primary mt-0.5">
+                          {w.ea_price ? `฿${Number(w.ea_price).toLocaleString()}` : '-'}
+                        </span>
+                      </div>
+                      <div className="bg-danger-bg-10 py-1 px-2 rounded-lg border border-danger-border-30 flex flex-col justify-between">
+                        <span className="text-[8px] sm:text-[9px] text-danger-text font-sans">ลดได้</span>
+                        <span className="font-bold text-[10px] sm:text-xs text-danger-text text-right mt-0.5">
+                          {w.dsc_price ? `฿${Number(w.dsc_price).toLocaleString()}` : '-'}
+                        </span>
+                      </div>
                     </div>
+                  </div>
+                ) : (
+                  /* หาก role ไม่ใช่ admin จะแสดงกล่องราคาชุดละแบบปกติ ไม่สามารถกดค้างเพื่อดูอะไรได้ */
+                  <div className="mt-auto w-full bg-bg-accent-10 border border-border-accent-20 text-accent py-2 px-3 rounded-xl flex justify-between items-center shadow-inner">
+                    <span className="text-[9px] sm:text-[10px] font-bold tracking-wider text-text-muted">ราคาชุดละ</span>
+                    <span className="font-black text-sm sm:text-base font-mono-spec">
+                      {w.pck_price ? `฿${Number(w.pck_price).toLocaleString()}` : '-'}
+                    </span>
                   </div>
                 )}
 
@@ -481,15 +495,15 @@ export default function CatalogPage() {
                     className="w-full bg-bg-main p-2.5 rounded-lg border border-border-default text-sm text-text-primary outline-none focus:border-accent uppercase"
                   />
                 </div>
-                                <div className="space-y-1">
-                  <label className="text-xs font-bold text-text-muted">รถ</label>
-                  <input 
-                    type="text" 
-                    placeholder="เช่น เก๋ง, ออฟโร้ด"
-                    value={formData.type}
-                    onChange={(e) => setFormData({...formData, type: e.target.value})}
-                    className="w-full bg-bg-main p-2.5 rounded-lg border border-border-default text-sm text-text-primary outline-none focus:border-accent uppercase"
-                  />
+                <div className="space-y-1">
+                   <label className="text-xs font-bold text-text-muted">รถ</label>
+                    <input 
+                      type="text" 
+                      placeholder="เช่น เก๋ง, ออฟโร้ด"
+                      value={formData.type}
+                      onChange={(e) => setFormData({...formData, type: e.target.value})}
+                      className="w-full bg-bg-main p-2.5 rounded-lg border border-border-default text-sm text-text-primary outline-none focus:border-accent uppercase"
+                    />
                 </div>
               </div>
               {/* ข้อมูลทางเทคนิคขนาด รู และ PCD */}
